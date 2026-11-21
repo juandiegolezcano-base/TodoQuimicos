@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tienda Todo Químicos — Catálogo y Gestión</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-canvas-mist: #f2f4f5;
+      --color-pure-white: #ffffff;
+      --color-ink-black: #000000;
+      --color-faint-border: #ebebeb;
+      --color-muted-gray: #787574;
+      --color-navy-primary: #0B1F3A;
+      --color-navy-hover: #132F57;
+      --shadow-sm: rgba(0, 0, 0, 0.06) 0px 2px 8px 0px;
+      --shadow-card: rgba(0, 0, 0, 0.08) 0px 4px 6px -1px, rgba(0, 0, 0, 0.06) 0px 2px 4px -2px;
+      --shadow-lg: rgba(0, 0, 0, 0.12) 0px 4px 24px 0px;
+      --shadow-navy: rgba(11, 31, 58, 0.28) 0px 4px 20px 0px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--color-canvas-mist);
+      color: var(--color-ink-black);
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+    .heading-tight { letter-spacing: -0.04em; }
+    .card-floating {
+      background: var(--color-pure-white);
+      border-radius: 28px;
+      box-shadow: var(--shadow-card);
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+    .card-floating:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    .panel-surface {
+      background: var(--color-pure-white);
+      border-radius: 28px;
+      box-shadow: var(--shadow-card);
+    }
+    .inner-media {
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .pill-control {
+      border-radius: 9999px;
+    }
+    .btn-navy {
+      background-color: var(--color-navy-primary);
+      color: #ffffff;
+      border-radius: 9999px;
+      box-shadow: var(--shadow-navy);
+      transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+    .btn-navy:hover:not(:disabled) {
+      background-color: var(--color-navy-hover);
+      transform: translateY(-1px);
+    }
+    .btn-navy:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .input-pill {
+      background: #ffffff;
+      border: 1px solid var(--color-faint-border);
+      border-radius: 9999px;
+      padding: 11px 18px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .input-pill:focus {
+      border-color: var(--color-navy-primary);
+      box-shadow: 0 0 0 3px rgba(11, 31, 58, 0.08);
+    }
+    .rail-item.active {
+      background-color: var(--color-canvas-mist);
+      border-radius: 20px;
+      color: var(--color-navy-primary);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Barra superior minimalista -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#ebebeb]">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('store')">
+        <div class="w-10 h-10 rounded-full bg-[#0B1F3A] flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+          TQ
+        </div>
+        <div>
+          <span class="text-[18px] font-semibold heading-tight text-black block leading-none">
+            Tienda Todo Químicos<span class="text-[#0B1F3A]">.</span>
+          </span>
+          <span class="text-[11px] text-[#787574]">Soluciones e insumos químicos</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button id="btnViewStore" onclick="switchView('store')"
+          class="pill-control px-4 py-2 text-[13px] font-medium bg-[#0B1F3A] text-white transition">
+          Tienda
+        </button>
+        <button id="btnViewAdmin" onclick="openAdminAccess()"
+          class="pill-control px-4 py-2 text-[13px] font-medium bg-white text-black border border-[#ebebeb] hover:bg-[#f2f4f5] transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <span>Panel Administrador</span>
+        </button>
+        <button id="btnCartHeader" onclick="scrollToCart()"
+          class="pill-control px-4 py-2 text-[13px] font-medium bg-black text-white flex items-center gap-2 hover:bg-[#1e293b] transition">
+          <span>Carrito</span>
+          <span id="cartCountBadge" class="px-2 py-0.5 text-[11px] rounded-full bg-white text-black font-semibold">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notificación flotante -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden bg-black text-white px-5 py-3.5 rounded-full text-[13px] shadow-xl flex items-center gap-2.5">
+    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+    <span id="toastMsg">Listo</span>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- VISTA 1: TIENDA PÚBLICA (CATÁLOGO + CARRITO + RECIBO)     -->
+  <!-- ========================================================= -->
+  <main id="storeView" class="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <!-- Hero + Buscador píldora -->
+    <section class="text-center max-w-2xl mx-auto mb-10">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#ebebeb] text-[12px] text-[#787574] mb-4 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-[#0B1F3A]"></span>
+        <span>Pedidos directos • Entrega programada</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-semibold heading-tight text-black mb-3">
+        Tienda Todo Químicos
+      </h1>
+      <p class="text-[15px] text-[#787574] mb-6">
+        Selecciona tus insumos químicos, agrégalos al carrito y genera tu recibo de pedido en segundos.
+      </p>
+
+      <!-- Barra de búsqueda estilo píldora -->
+      <div class="relative flex items-center bg-white rounded-full border border-black/10 p-1.5 pl-5 shadow-sm max-w-xl mx-auto">
+        <input id="searchInput" type="text" oninput="renderCatalog()"
+          placeholder="Buscar hipoclorito, desengrasante, solventes..."
+          class="w-full text-[15px] text-black placeholder-[#787574] bg-transparent outline-none pr-3" />
+        <button onclick="renderCatalog()" aria-label="Buscar"
+          class="w-11 h-11 rounded-full bg-[#0B1F3A] text-white flex items-center justify-center shrink-0 shadow-md hover:bg-[#132F57] transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Chips de categoría -->
+      <div id="categoryChips" class="flex flex-wrap justify-center gap-2 mt-5"></div>
+    </section>
+
+    <!-- Grid principal: Catálogo (8 cols) + Carrito & Recibo (4 cols) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <!-- Catálogo de productos -->
+      <section class="lg:col-span-8">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-[20px] font-semibold heading-tight text-black flex items-center gap-1.5">
+            <span>Catálogo disponible</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+          </h2>
+          <span id="catalogCount" class="text-[12px] text-[#787574]">Cargando...</span>
+        </div>
+
+        <div id="catalogGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- Columna derecha: Carrito + Recibo de Pedido -->
+      <aside id="cartSection" class="lg:col-span-4 space-y-5 sticky top-20">
+        <div class="panel-surface p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[18px] font-semibold heading-tight text-black">Tu Carrito</h3>
+            <button onclick="clearCart()" class="text-[12px] text-[#787574] hover:text-black underline">Vaciar</button>
+          </div>
+
+          <div id="cartItemsList" class="space-y-3 max-h-64 overflow-y-auto pr-1"></div>
+
+          <div class="border-t border-[#ebebeb] mt-4 pt-4 flex items-center justify-between">
+            <span class="text-[14px] text-[#787574]">Total estimado</span>
+            <span id="cartTotalDisplay" class="text-[20px] font-semibold heading-tight text-black">$0</span>
+          </div>
+        </div>
+
+        <!-- Formulario de Recibo -->
+        <form id="receiptForm" onsubmit="submitOrder(event)" class="panel-surface p-6 space-y-4">
+          <div>
+            <span class="text-[11px] uppercase tracking-wider text-[#0B1F3A] font-semibold">Recibo de Pedido</span>
+            <h3 class="text-[18px] font-semibold heading-tight text-black">Datos para la entrega</h3>
+          </div>
+
+          <div>
+            <label class="block text-[12px] text-[#787574] mb-1">Nombre y apellidos *</label>
+            <input id="custName" type="text" required placeholder="Ej. Carlos Andrés Mejía"
+              class="input-pill w-full" />
+          </div>
+
+          <div>
+            <label class="block text-[12px] text-[#787574] mb-1">Teléfono de contacto *</label>
+            <input id="custPhone" type="tel" required placeholder="Ej. 310 456 7890"
+              class="input-pill w-full" />
+          </div>
+
+          <div>
+            <label class="block text-[12px] text-[#787574] mb-1">Lugar donde se entrega el producto *</label>
+            <input id="custAddress" type="text" required placeholder="Dirección, barrio o empresa"
+              class="input-pill w-full" />
+          </div>
+
+          <button id="btnSubmitOrder" type="submit" class="btn-navy w-full py-3.5 text-[14px] font-medium">
+            Generar recibo y confirmar pedido
+          </button>
+        </form>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- VISTA 2: PANEL ADMINISTRADOR                              -->
+  <!-- ========================================================= -->
+  <section id="adminView" class="hidden flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-8">
+    <div class="flex flex-col md:flex-row gap-6 items-start">
+      <!-- Barra lateral estrecha tipo rail -->
+      <nav class="w-full md:w-16 bg-white rounded-[28px] p-2 shadow-sm flex md:flex-col items-center justify-around md:justify-start gap-2 shrink-0">
+        <button onclick="switchAdminTab('analytics')" id="tabAnalytics" title="Gráficas e Ingresos"
+          class="rail-item active w-12 h-12 flex items-center justify-center text-black transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </button>
+        <button onclick="switchAdminTab('products')" id="tabProducts" title="Productos e Imágenes"
+          class="rail-item w-12 h-12 flex items-center justify-center text-black transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+          </svg>
+        </button>
+        <button onclick="switchAdminTab('orders')" id="tabOrders" title="Recibos de Clientes"
+          class="rail-item w-12 h-12 flex items-center justify-center text-black transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </button>
+        <button onclick="switchAdminTab('contact')" id="tabContact" title="Contacto Pie de Página"
+          class="rail-item w-12 h-12 flex items-center justify-center text-black transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+        </button>
+        <div class="hidden md:block flex-1"></div>
+        <button onclick="logoutAdmin()" title="Cerrar sesión"
+          class="w-12 h-12 flex items-center justify-center text-red-600 hover:bg-red-50 rounded-[20px] transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+        </button>
+      </nav>
+
+      <!-- Contenido del Panel Administrador -->
+      <div class="flex-1 w-full space-y-6">
+        <!-- Encabezado Admin -->
+        <div class="panel-surface p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-[11px] uppercase tracking-wider text-[#0B1F3A] font-semibold">Administración • Tienda Todo Químicos</span>
+            <h2 id="adminSectionTitle" class="text-[22px] font-semibold heading-tight text-black">
+              Analítica de Ventas e Ingresos Mensuales
+            </h2>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <input id="monthFilter" type="month" onchange="refreshAdminData()" class="input-pill text-[13px]" />
+            <button onclick="exportMonthlyCSV()" class="pill-control px-4 py-2.5 bg-black text-white text-[13px] font-medium hover:bg-[#1e293b] transition">
+              Exportar CSV del mes
+            </button>
+          </div>
+        </div>
+
+        <!-- SUBVISTA A: GRÁFICAS E INGRESOS MENSUALES -->
+        <div id="adminTabAnalytics" class="space-y-6">
+          <!-- KPIs -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="panel-surface p-6">
+              <span class="text-[12px] text-[#787574]">Ingresos del mes (pedidos válidos)</span>
+              <p id="kpiRevenue" class="text-2xl sm:text-3xl font-semibold heading-tight text-[#0B1F3A] mt-1">$0</p>
+            </div>
+            <div class="panel-surface p-6">
+              <span class="text-[12px] text-[#787574]">Pedidos recibidos en el mes</span>
+              <p id="kpiOrders" class="text-2xl sm:text-3xl font-semibold heading-tight text-black mt-1">0</p>
+            </div>
+            <div class="panel-surface p-6">
+              <span class="text-[12px] text-[#787574]">Unidades químicas vendidas</span>
+              <p id="kpiUnits" class="text-2xl sm:text-3xl font-semibold heading-tight text-black mt-1">0</p>
+            </div>
+          </div>
+
+          <!-- Gráficas -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8 panel-surface p-6">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 class="text-[16px] font-semibold text-black">Rendimiento por producto</h3>
+                  <p class="text-[12px] text-[#787574]">Cantidad vendida vs. dinero generado en el mes seleccionado</p>
+                </div>
+                <select id="chartMetricMode" onchange="renderCharts()" class="input-pill text-[12px] py-1.5 px-3.5">
+                  <option value="both">Cantidad y Dinero ($)</option>
+                  <option value="revenue">Solo Dinero generado ($)</option>
+                  <option value="qty">Solo Cantidad vendida</option>
+                </select>
+              </div>
+              <div class="h-72">
+                <canvas id="productsBarChart"></canvas>
+              </div>
+            </div>
+
+            <div class="lg:col-span-4 panel-surface p-6">
+              <h3 class="text-[16px] font-semibold text-black mb-1">Participación de ingresos</h3>
+              <p class="text-[12px] text-[#787574] mb-4">Distribución porcentual por producto</p>
+              <div class="h-64 flex items-center justify-center">
+                <canvas id="revenueDoughnutChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla resumen por producto -->
+          <div class="panel-surface p-6 overflow-x-auto">
+            <h3 class="text-[16px] font-semibold text-black mb-4">Desglose detallado por producto</h3>
+            <table class="w-full text-left border-collapse text-[14px]">
+              <thead>
+                <tr class="border-b border-[#ebebeb] text-[12px] text-[#787574]">
+                  <th class="pb-3 font-medium">Producto</th>
+                  <th class="pb-3 font-medium text-right">Cantidad vendida</th>
+                  <th class="pb-3 font-medium text-right">Dinero generado</th>
+                  <th class="pb-3 font-medium text-right">% Ingresos</th>
+                </tr>
+              </thead>
+              <tbody id="productBreakdownBody" class="divide-y divide-[#ebebeb]"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUBVISTA B: GESTIÓN DE PRODUCTOS E IMÁGENES -->
+        <div id="adminTabProducts" class="hidden space-y-6">
+          <form id="productForm" onsubmit="saveProduct(event)" class="panel-surface p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 id="productFormTitle" class="text-[17px] font-semibold text-black">Agregar nuevo producto químico</h3>
+              <button type="button" id="btnCancelEdit" onclick="resetProductForm()" class="hidden text-[12px] text-[#787574] underline">
+                Cancelar edición
+              </button>
+            </div>
+
+            <input type="hidden" id="editProductId" />
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-[12px] text-[#787574] mb-1">Nombre del producto *</label>
+                <input id="prodName" type="text" required placeholder="Ej. Hipoclorito al 5%" class="input-pill w-full" />
+              </div>
+              <div>
+                <label class="block text-[12px] text-[#787574] mb-1">Presentación</label>
+                <input id="prodPresentation" type="text" placeholder="Ej. Galón x 3.78 L" class="input-pill w-full" />
+              </div>
+              <div>
+                <label class="block text-[12px] text-[#787574] mb-1">Categoría</label>
+                <input id="prodCategory" type="text" value="Desinfección" placeholder="Ej. Solventes" class="input-pill w-full" />
+              </div>
+              <div>
+                <label class="block text-[12px] text-[#787574] mb-1">Precio COP *</label>
+                <input id="prodPrice" type="number" min="0" step="100" required placeholder="25000" class="input-pill w-full" />
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+              <div class="flex items-center gap-3">
+                <label class="pill-control px-4 py-2.5 bg-[#f2f4f5] hover:bg-[#e5e7eb] text-[13px] font-medium cursor-pointer transition">
+                  <span>Seleccionar / Cambiar imagen</span>
+                  <input id="prodImageInput" type="file" accept="image/*" class="hidden" onchange="previewSelectedImage(event)" />
+                </label>
+                <span id="selectedFileName" class="text-[12px] text-[#787574]">Sin archivo nuevo</span>
+              </div>
+
+              <button id="btnSaveProduct" type="submit" class="btn-navy px-6 py-3 text-[14px] font-medium">
+                Guardar producto
+              </button>
+            </div>
+          </form>
+
+          <!-- Lista de productos administrables -->
+          <div id="adminProductsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- SUBVISTA C: RECIBOS DE CLIENTES -->
+        <div id="adminTabOrders" class="hidden space-y-4">
+          <div id="adminOrdersList" class="space-y-4"></div>
+        </div>
+
+        <!-- SUBVISTA D: CONTACTO PIE DE PÁGINA -->
+        <div id="adminTabContact" class="hidden">
+          <form onsubmit="saveContactConfig(event)" class="panel-surface p-6 max-w-xl space-y-4">
+            <h3 class="text-[17px] font-semibold text-black">Información de contacto en el pie de página</h3>
+            <div>
+              <label class="block text-[12px] text-[#787574] mb-1">Número de WhatsApp</label>
+              <input id="cfgWhatsapp" type="text" required class="input-pill w-full" />
+            </div>
+            <div>
+              <label class="block text-[12px] text-[#787574] mb-1">Correo electrónico</label>
+              <input id="cfgEmail" type="email" required class="input-pill w-full" />
+            </div>
+            <div>
+              <label class="block text-[12px] text-[#787574] mb-1">Teléfono fijo / celular</label>
+              <input id="cfgPhone" type="text" required class="input-pill w-full" />
+            </div>
+            <div>
+              <label class="block text-[12px] text-[#787574] mb-1">Ubicación / Ciudad</label>
+              <input id="cfgLocation" type="text" required class="input-pill w-full" />
+            </div>
+            <button type="submit" class="btn-navy px-6 py-3 text-[14px] font-medium">
+              Guardar datos de contacto
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODAL DE INICIO DE SESIÓN ADMINISTRADOR (SUPABASE AUTH) -->
+  <div id="loginModal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <form onsubmit="loginAdmin(event)" class="bg-white rounded-[28px] p-7 max-w-sm w-full shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="text-[11px] uppercase tracking-wider text-[#0B1F3A] font-semibold">Acceso Restringido</span>
+          <h3 class="text-[20px] font-semibold heading-tight text-black">Panel Administrador</h3>
+        </div>
+        <button type="button" onclick="closeLoginModal()" class="w-8 h-8 rounded-full bg-[#f2f4f5] text-black flex items-center justify-center">✕</button>
+      </div>
+      <p class="text-[13px] text-[#787574]">Ingresa con tu correo y contraseña autorizados en Supabase.</p>
+      <div>
+        <label class="block text-[12px] text-[#787574] mb-1">Correo electrónico</label>
+        <input id="adminEmail" type="email" required placeholder="admin@todoquimicos.com" class="input-pill w-full" />
+      </div>
+      <div>
+        <label class="block text-[12px] text-[#787574] mb-1">Contraseña</label>
+        <input id="adminPassword" type="password" required placeholder="••••••••" class="input-pill w-full" />
+      </div>
+      <p id="loginError" class="hidden text-[12px] text-red-600"></p>
+      <button id="btnLoginSubmit" type="submit" class="btn-navy w-full py-3 text-[14px] font-medium">
+        Iniciar sesión
+      </button>
+    </form>
+  </div>
+
+  <!-- MODAL RECIBO GENERADO AL CLIENTE -->
+  <div id="receiptModal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-[28px] p-7 max-w-md w-full shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-[#ebebeb] pb-3">
+        <div>
+          <span class="text-[11px] uppercase tracking-wider text-emerald-700 font-semibold">Pedido Confirmado</span>
+          <h3 id="modalReceiptNumber" class="text-[20px] font-semibold heading-tight text-black">Recibo #000</h3>
+        </div>
+        <button onclick="closeReceiptModal()" class="w-8 h-8 rounded-full bg-[#f2f4f5] text-black flex items-center justify-center">✕</button>
+      </div>
+      <div id="modalReceiptBody" class="text-[13px] space-y-2 text-black"></div>
+      <button onclick="closeReceiptModal()" class="btn-navy w-full py-3 text-[14px] font-medium">
+        Listo, volver a la tienda
+      </button>
+    </div>
+  </div>
+
+  <!-- PIE DE PÁGINA CORPORATIVO -->
+  <footer class="bg-black text-white mt-16">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div>
+        <div class="flex items-center gap-2.5 mb-3">
+          <span class="w-8 h-8 rounded-full bg-[#0B1F3A] flex items-center justify-center text-xs font-semibold">TQ</span>
+          <span class="text-[17px] font-semibold heading-tight">Tienda Todo Químicos</span>
+        </div>
+        <p class="text-[13px] text-white/70">
+          Suministro confiable de productos químicos industriales, institucionales y de desinfección.
+        </p>
+      </div>
+
+      <div class="space-y-2 text-[13px]">
+        <h4 class="font-semibold text-white mb-2">Contacto Directo</h4>
+        <p class="text-white/80">Correo: <span id="footerEmail">ventas@todoquimicos.com</span></p>
+        <p class="text-white/80">Teléfono: <span id="footerPhone">(606) 880 0000</span></p>
+        <p class="text-white/80">Ubicación: <span id="footerLocation">Manizales, Caldas — Colombia</span></p>
+      </div>
+
+      <div class="flex flex-col justify-between items-start md:items-end">
+        <a id="footerWhatsappLink" href="https://wa.me/573000000000" target="_blank" rel="noopener"
+          class="pill-control px-5 py-3 bg-[#0B1F3A] hover:bg-[#132F57] text-white text-[13px] font-medium inline-flex items-center gap-2 transition">
+          <span>Escribir por WhatsApp</span>
+          <span id="footerWhatsappText" class="text-white/80 text-[12px]">+57 300 000 0000</span>
+        </a>
+        <span class="text-[11px] text-white/50 mt-4">© 2026 Tienda Todo Químicos. Todos los derechos reservados.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ==========================================================
+    // 1. CREDENCIALES DE SUPABASE (REEMPLAZA CON TUS DATOS)
+    // ==========================================================
+    const SUPABASE_URL = 'https://axwkhthsspmcrpdppawx.supabase.co/rest/v1/';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ErNdwNeGOuA_30nyEutKMg_Sf-_461q';
+
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Estado de la aplicación
+    let allProducts = [];
+    let cart = JSON.parse(localStorage.getItem('tq_cart') || '[]');
+    let selectedCategory = 'Todas';
+    let adminOrders = [];
+    let barChartInstance = null;
+    let doughnutChartInstance = null;
+
+    // Formato moneda COP
+    const formatCOP = (val) => new Intl.NumberFormat('es-CO', {
+      style: 'currency', currency: 'COP', maximumFractionDigits: 0
+    }).format(Number(val || 0));
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => t.classList.add('hidden'), 3200);
+    }
+
+    // Mes actual en zona horaria Colombia (YYYY-MM)
+    function getColombiaYearMonth(dateObj = new Date()) {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota', year: 'numeric', month: '2-digit'
+      }).formatToParts(dateObj);
+      const y = parts.find(p => p.type === 'year').value;
+      const m = parts.find(p => p.type === 'month').value;
+      return `${y}-${m}`;
+    }
+
+    // ==========================================================
+    // 2. INICIALIZACIÓN Y CARGA DE DATOS PÚBLICOS
+    // ==========================================================
+    async function init() {
+      document.getElementById('monthFilter').value = getColombiaYearMonth();
+      renderCart();
+      await Promise.all([loadPublicProducts(), loadContactConfig()]);
+    }
+
+    async function loadPublicProducts() {
+      const { data, error } = await sb
+        .from('productos')
+        .select('*')
+        .eq('activo', true)
+        .order('id', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        document.getElementById('catalogCount').textContent = 'Error cargando catálogo';
+        return;
+      }
+      allProducts = data || [];
+      renderCategoryChips();
+      renderCatalog();
+    }
+
+    async function loadContactConfig() {
+      const { data } = await sb.from('configuracion').select('*').eq('id', 1).single();
+      if (!data) return;
+
+      document.getElementById('footerEmail').textContent = data.correo;
+      document.getElementById('footerPhone').textContent = data.telefono;
+      document.getElementById('footerLocation').textContent = data.ubicacion;
+      document.getElementById('footerWhatsappText').textContent = data.whatsapp;
+
+      const cleanWa = (data.whatsapp || '').replace(/\D/g, '');
+      document.getElementById('footerWhatsappLink').href = `https://wa.me/${cleanWa}`;
+
+      document.getElementById('cfgWhatsapp').value = data.whatsapp;
+      document.getElementById('cfgEmail').value = data.correo;
+      document.getElementById('cfgPhone').value = data.telefono;
+      document.getElementById('cfgLocation').value = data.ubicacion;
+    }
+
+    // ==========================================================
+    // 3. CATÁLOGO, CARRITO Y GENERACIÓN DE RECIBO
+    // ==========================================================
+    function renderCategoryChips() {
+      const cats = ['Todas', ...new Set(allProducts.map(p => p.categoria).filter(Boolean))];
+      const container = document.getElementById('categoryChips');
+      container.innerHTML = cats.map(cat => {
+        const active = cat === selectedCategory;
+        return `
+          <button onclick="selectCategory('${cat.replace(/'/g, "\\'")}')"
+            class="pill-control px-4 py-2 text-[13px] transition ${
+              active
+                ? 'bg-[#0B1F3A] text-white font-medium shadow-sm'
+                : 'bg-white text-black border border-[#ebebeb] hover:bg-[#f2f4f5]'
+            }">
+            ${cat}
+          </button>`;
+      }).join('');
+    }
+
+    function selectCategory(cat) {
+      selectedCategory = cat;
+      renderCategoryChips();
+      renderCatalog();
+    }
+
+    function renderCatalog() {
+      const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+      const filtered = allProducts.filter(p => {
+        const matchCat = selectedCategory === 'Todas' || p.categoria === selectedCategory;
+        const matchText = !q || p.nombre.toLowerCase().includes(q) || (p.presentacion || '').toLowerCase().includes(q);
+        return matchCat && matchText;
+      });
+
+      document.getElementById('catalogCount').textContent = `${filtered.length} producto(s)`;
+      const grid = document.getElementById('catalogGrid');
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="col-span-full panel-surface p-8 text-center text-[14px] text-[#787574]">No se encontraron productos químicos con ese filtro.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(p => `
+        <article class="card-floating p-2 flex flex-col justify-between">
+          <div>
+            <div class="inner-media aspect-square bg-[#f2f4f5] flex items-center justify-center relative">
+              ${p.imagen_url
+                ? `<img src="${p.imagen_url}" alt="${p.nombre}" class="w-full h-full object-cover" />`
+                : `<div class="text-center p-4">
+                     <div class="w-12 h-12 rounded-full bg-[#0B1F3A]/10 text-[#0B1F3A] mx-auto flex items-center justify-center font-semibold text-sm mb-2">TQ</div>
+                     <span class="text-[11px] text-[#787574]">Sin imagen</span>
+                   </div>`
+              }
+              <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur text-[11px] font-medium text-black">
+                ${p.categoria}
+              </span>
+            </div>
+            <div class="px-3 pt-3 pb-2">
+              <h3 class="text-[15px] font-semibold heading-tight text-black leading-snug">${p.nombre}</h3>
+              <p class="text-[12px] text-[#787574] mt-0.5">${p.presentacion || 'Presentación estándar'}</p>
+            </div>
+          </div>
+          <div class="px-3 pb-3 pt-2 flex items-center justify-between gap-2">
+            <span class="text-[16px] font-semibold text-[#0B1F3A]">${formatCOP(p.precio)}</span>
+            <button onclick="addToCart(${p.id})"
+              class="btn-navy px-3.5 py-2 text-[12px] font-medium">
+              + Agregar
+            </button>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function addToCart(productId) {
+      const prod = allProducts.find(p => p.id === productId);
+      if (!prod) return;
+      const existing = cart.find(item => item.producto_id === productId);
+      if (existing) {
+        existing.cantidad += 1;
+      } else {
+        cart.push({
+          producto_id: prod.id,
+          nombre: prod.nombre,
+          precio: Number(prod.precio),
+          cantidad: 1
+        });
+      }
+      saveCart();
+      showToast(`Agregado: ${prod.nombre}`);
+    }
+
+    function updateCartQty(productId, delta) {
+      const idx = cart.findIndex(i => i.producto_id === productId);
+      if (idx === -1) return;
+      cart[idx].cantidad += delta;
+      if (cart[idx].cantidad <= 0) cart.splice(idx, 1);
+      saveCart();
+    }
+
+    function clearCart() {
+      cart = [];
+      saveCart();
+    }
+
+    function saveCart() {
+      localStorage.setItem('tq_cart', JSON.stringify(cart));
+      renderCart();
+    }
+
+    function renderCart() {
+      const list = document.getElementById('cartItemsList');
+      const totalItems = cart.reduce((acc, i) => acc + i.cantidad, 0);
+      const totalMoney = cart.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+
+      document.getElementById('cartCountBadge').textContent = totalItems;
+      document.getElementById('cartTotalDisplay').textContent = formatCOP(totalMoney);
+
+      if (!cart.length) {
+        list.innerHTML = `<p class="text-[13px] text-[#787574] py-4 text-center">Aún no has agregado productos al carrito.</p>`;
+        return;
+      }
+
+      list.innerHTML = cart.map(item => `
+        <div class="flex items-center justify-between gap-2 bg-[#f2f4f5] rounded-2xl px-3.5 py-2.5">
+          <div class="min-w-0">
+            <p class="text-[13px] font-medium text-black truncate">${item.nombre}</p>
+            <p class="text-[11px] text-[#787574]">${formatCOP(item.precio)} c/u</p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="updateCartQty(${item.producto_id}, -1)"
+              class="w-7 h-7 rounded-full bg-white text-black font-semibold text-xs border border-[#ebebeb]">-</button>
+            <span class="w-6 text-center text-[13px] font-semibold">${item.cantidad}</span>
+            <button type="button" onclick="updateCartQty(${item.producto_id}, 1)"
+              class="w-7 h-7 rounded-full bg-white text-black font-semibold text-xs border border-[#ebebeb]">+</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function scrollToCart() {
+      switchView('store');
+      document.getElementById('cartSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function submitOrder(e) {
+      e.preventDefault();
+      if (!cart.length) {
+        showToast('Agrega al menos un producto al carrito');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitOrder');
+      btn.disabled = true;
+      btn.textContent = 'Generando recibo...';
+
+      const nombre = document.getElementById('custName').value.trim();
+      const telefono = document.getElementById('custPhone').value.trim();
+      const lugar = document.getElementById('custAddress').value.trim();
+
+      const payloadItems = cart.map(i => ({
+        producto_id: i.producto_id,
+        cantidad: i.cantidad
+      }));
+
+      const { data: pedidoId, error } = await sb.rpc('crear_pedido', {
+        p_nombre_apellidos: nombre,
+        p_telefono: telefono,
+        p_lugar_entrega: lugar,
+        p_items: payloadItems
+      });
+
+      btn.disabled = false;
+      btn.textContent = 'Generar recibo y confirmar pedido';
+
+      if (error) {
+        console.error(error);
+        showToast('Error al registrar el pedido. Verifica conexión.');
+        return;
+      }
+
+      const totalOrder = cart.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+      document.getElementById('modalReceiptNumber').textContent = `Recibo #${pedidoId}`;
+      document.getElementById('modalReceiptBody').innerHTML = `
+        <p><strong>Cliente:</strong> ${nombre}</p>
+        <p><strong>Teléfono:</strong> ${telefono}</p>
+        <p><strong>Entrega:</strong> ${lugar}</p>
+        <div class="border-t border-[#ebebeb] pt-2 mt-2 space-y-1">
+          ${cart.map(i => `<div class="flex justify-between"><span>${i.cantidad}x ${i.nombre}</span><span>${formatCOP(i.precio * i.cantidad)}</span></div>`).join('')}
+        </div>
+        <div class="border-t border-[#ebebeb] pt-2 mt-2 flex justify-between text-[15px] font-semibold">
+          <span>Total a pagar:</span>
+          <span class="text-[#0B1F3A]">${formatCOP(totalOrder)}</span>
+        </div>
+      `;
+      document.getElementById('receiptModal').classList.remove('hidden');
+
+      e.target.reset();
+      clearCart();
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('receiptModal').classList.add('hidden');
+    }
+
+    // ==========================================================
+    // 4. NAVEGACIÓN Y AUTENTICACIÓN DEL PANEL ADMINISTRADOR
+    // ==========================================================
+    function switchView(view) {
+      const storeEl = document.getElementById('storeView');
+      const adminEl = document.getElementById('adminView');
+      const btnStore = document.getElementById('btnViewStore');
+      const btnAdmin = document.getElementById('btnViewAdmin');
+
+      if (view === 'admin') {
+        storeEl.classList.add('hidden');
+        adminEl.classList.remove('hidden');
+        btnAdmin.className = 'pill-control px-4 py-2 text-[13px] font-medium bg-[#0B1F3A] text-white transition flex items-center gap-1.5';
+        btnStore.className = 'pill-control px-4 py-2 text-[13px] font-medium bg-white text-black border border-[#ebebeb] hover:bg-[#f2f4f5] transition';
+        refreshAdminData();
+      } else {
+        adminEl.classList.add('hidden');
+        storeEl.classList.remove('hidden');
+        btnStore.className = 'pill-control px-4 py-2 text-[13px] font-medium bg-[#0B1F3A] text-white transition';
+        btnAdmin.className = 'pill-control px-4 py-2 text-[13px] font-medium bg-white text-black border border-[#ebebeb] hover:bg-[#f2f4f5] transition flex items-center gap-1.5';
+        loadPublicProducts();
+      }
+    }
+
+    async function openAdminAccess() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        switchView('admin');
+      } else {
+        document.getElementById('loginError').classList.add('hidden');
+        document.getElementById('loginModal').classList.remove('hidden');
+      }
+    }
+
+    function closeLoginModal() {
+      document.getElementById('loginModal').classList.add('hidden');
+    }
+
+    async function loginAdmin(e) {
+      e.preventDefault();
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      const errEl = document.getElementById('loginError');
+      const btn = document.getElementById('btnLoginSubmit');
+
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+      errEl.classList.add('hidden');
+
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+
+      btn.disabled = false;
+      btn.textContent = 'Iniciar sesión';
+
+      if (error) {
+        errEl.textContent = 'Credenciales incorrectas o usuario no autorizado.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      closeLoginModal();
+      showToast('Sesión de administrador iniciada');
+      switchView('admin');
+    }
+
+    async function logoutAdmin() {
+      await sb.auth.signOut();
+      showToast('Sesión cerrada');
+      switchView('store');
+    }
+
+    function switchAdminTab(tab) {
+      const tabs = ['analytics', 'products', 'orders', 'contact'];
+      const titles = {
+        analytics: 'Analítica de Ventas e Ingresos Mensuales',
+        products: 'Gestión de Productos e Imágenes',
+        orders: 'Recibos Generados por Clientes',
+        contact: 'Configuración de Contacto'
+      };
+      tabs.forEach(t => {
+        const cap = t.charAt(0).toUpperCase() + t.slice(1);
+        document.getElementById(`adminTab${cap}`).classList.toggle('hidden', t !== tab);
+        document.getElementById(`tab${cap}`).classList.toggle('active', t === tab);
+      });
+      document.getElementById('adminSectionTitle').textContent = titles[tab];
+    }
+
+    // ==========================================================
+    // 5. DATOS ADMIN, GRÁFICAS Y EXPORTACIÓN CSV
+    // ==========================================================
+    async function refreshAdminData() {
+      await Promise.all([loadAdminProducts(), loadAdminOrders()]);
+    }
+
+    async function loadAdminOrders() {
+      const { data, error } = await sb
+        .from('pedidos')
+        .select('*, items_pedido(*)')
+        .order('creado_en', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+      adminOrders = data || [];
+      renderMonthlyAnalytics();
+      renderAdminOrdersList();
+    }
+
+    function getFilteredMonthOrders() {
+      const targetMonth = document.getElementById('monthFilter').value;
+      return adminOrders.filter(o => {
+        const orderMonth = getColombiaYearMonth(new Date(o.creado_en));
+        return !targetMonth || orderMonth === targetMonth;
+      });
+    }
+
+    function getProductStatsForMonth() {
+      const monthOrders = getFilteredMonthOrders().filter(o => o.estado !== 'cancelado');
+      const map = {};
+
+      monthOrders.forEach(order => {
+        (order.items_pedido || []).forEach(item => {
+          const name = item.producto_nombre;
+          if (!map[name]) {
+            map[name] = { nombre: name, cantidad: 0, ingresos: 0 };
+          }
+          map[name].cantidad += Number(item.cantidad);
+          map[name].ingresos += Number(item.cantidad) * Number(item.precio_unitario);
+        });
+      });
+
+      return Object.values(map).sort((a, b) => b.ingresos - a.ingresos);
+    }
+
+    function renderMonthlyAnalytics() {
+      const monthOrders = getFilteredMonthOrders();
+      const validOrders = monthOrders.filter(o => o.estado !== 'cancelado');
+      const stats = getProductStatsForMonth();
+
+      const totalRevenue = validOrders.reduce((acc, o) => acc + Number(o.total), 0);
+      const totalUnits = stats.reduce((acc, s) => acc + s.cantidad, 0);
+
+      document.getElementById('kpiRevenue').textContent = formatCOP(totalRevenue);
+      document.getElementById('kpiOrders').textContent = validOrders.length;
+      document.getElementById('kpiUnits').textContent = totalUnits;
+
+      // Tabla desglose
+      const tbody = document.getElementById('productBreakdownBody');
+      if (!stats.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-[#787574]">Sin ventas registradas en este mes.</td></tr>`;
+      } else {
+        tbody.innerHTML = stats.map(s => {
+          const pct = totalRevenue > 0 ? ((s.ingresos / totalRevenue) * 100).toFixed(1) : '0.0';
+          return `
+            <tr>
+              <td class="py-3 font-medium text-black">${s.nombre}</td>
+              <td class="py-3 text-right">${s.cantidad} und.</td>
+              <td class="py-3 text-right font-semibold text-[#0B1F3A]">${formatCOP(s.ingresos)}</td>
+              <td class="py-3 text-right text-[#787574]">${pct}%</td>
+            </tr>`;
+        }).join('');
+      }
+
+      renderCharts(stats);
+    }
+
+    function renderCharts(cachedStats) {
+      const stats = cachedStats || getProductStatsForMonth();
+      const mode = document.getElementById('chartMetricMode').value;
+      const labels = stats.map(s => s.nombre);
+      const qtyData = stats.map(s => s.cantidad);
+      const revData = stats.map(s => s.ingresos);
+
+      if (barChartInstance) barChartInstance.destroy();
+      if (doughnutChartInstance) doughnutChartInstance.destroy();
+
+      const datasets = [];
+      if (mode === 'both' || mode === 'revenue') {
+        datasets.push({
+          label: 'Dinero generado ($ COP)',
+          data: revData,
+          backgroundColor: '#0B1F3A',
+          borderRadius: 10,
+          yAxisID: 'y'
+        });
+      }
+      if (mode === 'both' || mode === 'qty') {
+        datasets.push({
+          label: 'Cantidad vendida (und.)',
+          data: qtyData,
+          backgroundColor: '#111111',
+          borderRadius: 10,
+          yAxisID: mode === 'both' ? 'y1' : 'y'
+        });
+      }
+
+      const scales = {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#f2f4f5' },
+          ticks: {
+            callback: (v) => mode === 'qty' ? v : '$' + Number(v).toLocaleString('es-CO')
+          }
+        }
+      };
+
+      if (mode === 'both') {
+        scales.y1 = {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { precision: 0 }
+        };
+      }
+
+      barChartInstance = new Chart(document.getElementById('productsBarChart'), {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales
+        }
+      });
+
+      const palette = ['#0B1F3A', '#1E3A5F', '#000000', '#475569', '#94A3B8', '#CBD5E1'];
+      doughnutChartInstance = new Chart(document.getElementById('revenueDoughnutChart'), {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: revData,
+            backgroundColor: labels.map((_, idx) => palette[idx % palette.length]),
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '66%',
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } }
+        }
+      });
+    }
+
+    function renderAdminOrdersList() {
+      const monthOrders = getFilteredMonthOrders();
+      const container = document.getElementById('adminOrdersList');
+
+      if (!monthOrders.length) {
+        container.innerHTML = `<div class="panel-surface p-8 text-center text-[14px] text-[#787574]">No hay recibos registrados en el mes seleccionado.</div>`;
+        return;
+      }
+
+      container.innerHTML = monthOrders.map(o => {
+        const fecha = new Date(o.creado_en).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+        const badgeClass = o.estado === 'entregado'
+          ? 'bg-emerald-100 text-emerald-800'
+          : o.estado === 'cancelado'
+            ? 'bg-red-100 text-red-700'
+            : 'bg-amber-100 text-amber-800';
+
+        return `
+          <div class="panel-surface p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1.5">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[16px] font-semibold text-black">Recibo #${o.id}</span>
+                <span class="px-3 py-0.5 rounded-full text-[11px] font-semibold uppercase ${badgeClass}">${o.estado}</span>
+                <span class="text-[12px] text-[#787574]">${fecha}</span>
+              </div>
+              <p class="text-[14px] text-black"><strong>Cliente:</strong> ${o.nombre_apellidos} • <strong>Tel:</strong> ${o.telefono}</p>
+              <p class="text-[13px] text-[#787574]"><strong>Entrega:</strong> ${o.lugar_entrega}</p>
+              <div class="flex flex-wrap gap-2 pt-1">
+                ${(o.items_pedido || []).map(i => `
+                  <span class="px-3 py-1 rounded-full bg-[#f2f4f5] text-[12px] text-black">
+                    ${i.cantidad}x ${i.producto_nombre} (${formatCOP(i.precio_unitario)})
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="flex flex-row md:flex-col items-center md:items-end justify-between gap-3 shrink-0">
+              <span class="text-[20px] font-semibold text-[#0B1F3A]">${formatCOP(o.total)}</span>
+              <select onchange="updateOrderStatus(${o.id}, this.value)" class="input-pill text-[12px] py-1.5 px-3">
+                <option value="pendiente" ${o.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                <option value="entregado" ${o.estado === 'entregado' ? 'selected' : ''}>Entregado</option>
+                <option value="cancelado" ${o.estado === 'cancelado' ? 'selected' : ''}>Cancelado</option>
+              </select>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+      const { error } = await sb.from('pedidos').update({ estado: newStatus }).eq('id', orderId);
+      if (error) {
+        showToast('No se pudo actualizar el estado');
+        return;
+      }
+      showToast(`Recibo #${orderId} actualizado a ${newStatus}`);
+      await loadAdminOrders();
+    }
+
+    function exportMonthlyCSV() {
+      const targetMonth = document.getElementById('monthFilter').value;
+      const monthOrders = getFilteredMonthOrders();
+      if (!monthOrders.length) {
+        showToast('No hay pedidos en este mes para exportar');
+        return;
+      }
+
+      const rows = [['Recibo ID', 'Fecha', 'Nombre y Apellidos', 'Telefono', 'Lugar de Entrega', 'Productos', 'Total COP', 'Estado']];
+      monthOrders.forEach(o => {
+        const prods = (o.items_pedido || []).map(i => `${i.cantidad}x ${i.producto_nombre}`).join(' | ');
+        const fecha = new Date(o.creado_en).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+        rows.push([o.id, fecha, o.nombre_apellidos, o.telefono, o.lugar_entrega, prods, o.total, o.estado]);
+      });
+
+      const csvContent = '\uFEFF' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Ingresos_TodoQuimicos_${targetMonth}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ==========================================================
+    // 6. CRUD DE PRODUCTOS Y GESTIÓN DE IMÁGENES EN STORAGE
+    // ==========================================================
+    let adminProductsCache = [];
+
+    async function loadAdminProducts() {
+      const { data, error } = await sb.from('productos').select('*').order('id', { ascending: false });
+      if (error) return;
+      adminProductsCache = data || [];
+      renderAdminProducts();
+    }
+
+    function previewSelectedImage(e) {
+      const file = e.target.files[0];
+      document.getElementById('selectedFileName').textContent = file ? file.name : 'Sin archivo nuevo';
+    }
+
+    async function uploadProductImage(file) {
+      const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${Date.now()}-${cleanName}`;
+      const { error } = await sb.storage.from('productos').upload(path, file, { upsert: false });
+      if (error) throw error;
+      const { data } = sb.storage.from('productos').getPublicUrl(path);
+      return { url: data.publicUrl, path };
+    }
+
+    async function saveProduct(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveProduct');
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+
+      try {
+        const editId = document.getElementById('editProductId').value;
+        const nombre = document.getElementById('prodName').value.trim();
+        const presentacion = document.getElementById('prodPresentation').value.trim();
+        const categoria = document.getElementById('prodCategory').value.trim() || 'General';
+        const precio = Number(document.getElementById('prodPrice').value);
+        const fileInput = document.getElementById('prodImageInput');
+        const newFile = fileInput.files[0];
+
+        if (editId) {
+          const current = adminProductsCache.find(p => String(p.id) === String(editId));
+          const updates = { nombre, presentacion, categoria, precio };
+
+          if (newFile) {
+            const uploaded = await uploadProductImage(newFile);
+            updates.imagen_url = uploaded.url;
+            updates.imagen_path = uploaded.path;
+            if (current?.imagen_path) {
+              await sb.storage.from('productos').remove([current.imagen_path]);
+            }
+          }
+
+          const { error } = await sb.from('productos').update(updates).eq('id', editId);
+          if (error) throw error;
+          showToast('Producto actualizado');
+        } else {
+          let imagen_url = null;
+          let imagen_path = null;
+          if (newFile) {
+            const uploaded = await uploadProductImage(newFile);
+            imagen_url = uploaded.url;
+            imagen_path = uploaded.path;
+          }
+
+          const { error } = await sb.from('productos').insert({
+            nombre, presentacion, categoria, precio, imagen_url, imagen_path, activo: true
+          });
+          if (error) throw error;
+          showToast('Producto creado en el catálogo');
+        }
+
+        resetProductForm();
+        await loadAdminProducts();
+      } catch (err) {
+        console.error(err);
+        showToast('Error al guardar producto o subir imagen');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar producto';
+      }
+    }
+
+    function editProduct(id) {
+      const p = adminProductsCache.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('editProductId').value = p.id;
+      document.getElementById('prodName').value = p.nombre;
+      document.getElementById('prodPresentation').value = p.presentacion || '';
+      document.getElementById('prodCategory').value = p.categoria || '';
+      document.getElementById('prodPrice').value = p.precio;
+      document.getElementById('productFormTitle').textContent = `Editando: ${p.nombre}`;
+      document.getElementById('btnCancelEdit').classList.remove('hidden');
+      document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function resetProductForm() {
+      document.getElementById('productForm').reset();
+      document.getElementById('editProductId').value = '';
+      document.getElementById('selectedFileName').textContent = 'Sin archivo nuevo';
+      document.getElementById('productFormTitle').textContent = 'Agregar nuevo producto químico';
+      document.getElementById('btnCancelEdit').classList.add('hidden');
+    }
+
+    async function quickChangeImage(id, file) {
+      if (!file) return;
+      const current = adminProductsCache.find(p => p.id === id);
+      try {
+        showToast('Subiendo nueva imagen...');
+        const uploaded = await uploadProductImage(file);
+        const { error } = await sb.from('productos').update({
+          imagen_url: uploaded.url,
+          imagen_path: uploaded.path
+        }).eq('id', id);
+        if (error) throw error;
+
+        if (current?.imagen_path) {
+          await sb.storage.from('productos').remove([current.imagen_path]);
+        }
+        showToast('Imagen actualizada');
+        await loadAdminProducts();
+      } catch (err) {
+        console.error(err);
+        showToast('Error al cambiar la imagen');
+      }
+    }
+
+    async function removeProductImage(id) {
+      const current = adminProductsCache.find(p => p.id === id);
+      if (!current) return;
+      try {
+        if (current.imagen_path) {
+          await sb.storage.from('productos').remove([current.imagen_path]);
+        }
+        const { error } = await sb.from('productos').update({
+          imagen_url: null,
+          imagen_path: null
+        }).eq('id', id);
+        if (error) throw error;
+        showToast('Imagen quitada del producto');
+        await loadAdminProducts();
+      } catch (err) {
+        console.error(err);
+        showToast('No se pudo quitar la imagen');
+      }
+    }
+
+    async function toggleProductActive(id, nextState) {
+      const { error } = await sb.from('productos').update({ activo: nextState }).eq('id', id);
+      if (error) return;
+      showToast(nextState ? 'Producto visible en tienda' : 'Producto ocultado de la tienda');
+      await loadAdminProducts();
+    }
+
+    function renderAdminProducts() {
+      const grid = document.getElementById('adminProductsGrid');
+      grid.innerHTML = adminProductsCache.map(p => `
+        <div class="panel-surface p-3 flex flex-col justify-between ${!p.activo ? 'opacity-65' : ''}">
+          <div>
+            <div class="inner-media aspect-video bg-[#f2f4f5] flex items-center justify-center relative">
+              ${p.imagen_url
+                ? `<img src="${p.imagen_url}" alt="${p.nombre}" class="w-full h-full object-cover" />`
+                : `<span class="text-[12px] text-[#787574]">Sin imagen asignada</span>`
+              }
+              <span class="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${p.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'}">
+                ${p.activo ? 'Activo' : 'Oculto'}
+              </span>
+            </div>
+            <div class="px-2 pt-3">
+              <h4 class="text-[15px] font-semibold text-black">${p.nombre}</h4>
+              <p class="text-[12px] text-[#787574]">${p.presentacion || ''} • ${formatCOP(p.precio)}</p>
+            </div>
+          </div>
+
+          <div class="px-2 pt-3 pb-1 flex flex-wrap gap-1.5">
+            <label class="pill-control px-3 py-1.5 bg-[#0B1F3A] text-white text-[11px] font-medium cursor-pointer hover:bg-[#132F57]">
+              <span>${p.imagen_url ? 'Cambiar foto' : 'Colocar foto'}</span>
+              <input type="file" accept="image/*" class="hidden" onchange="quickChangeImage(${p.id}, this.files[0])" />
+            </label>
+            ${p.imagen_url ? `
+              <button onclick="removeProductImage(${p.id})" class="pill-control px-3 py-1.5 bg-red-50 text-red-700 text-[11px] font-medium hover:bg-red-100">
+                Quitar foto
+              </button>
+            ` : ''}
+            <button onclick="editProduct(${p.id})" class="pill-control px-3 py-1.5 bg-[#f2f4f5] text-black text-[11px] font-medium hover:bg-[#e5e7eb]">
+              Editar datos
+            </button>
+            <button onclick="toggleProductActive(${p.id}, ${!p.activo})" class="pill-control px-3 py-1.5 bg-white border border-[#ebebeb] text-black text-[11px]">
+              ${p.activo ? 'Ocultar' : 'Activar'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ==========================================================
+    // 7. GUARDAR CONFIGURACIÓN DE CONTACTO
+    // ==========================================================
+    async function saveContactConfig(e) {
+      e.preventDefault();
+      const payload = {
+        id: 1,
+        whatsapp: document.getElementById('cfgWhatsapp').value.trim(),
+        correo: document.getElementById('cfgEmail').value.trim(),
+        telefono: document.getElementById('cfgPhone').value.trim(),
+        ubicacion: document.getElementById('cfgLocation').value.trim()
+      };
+      const { error } = await sb.from('configuracion').upsert(payload);
+      if (error) {
+        showToast('Error guardando contacto');
+        return;
+      }
+      await loadContactConfig();
+      showToast('Contacto del pie de página actualizado');
+    }
+
+    init();
+  </script>
+</body>
+</html>
