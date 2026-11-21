@@ -138,7 +138,6 @@
   <!-- VISTA 1: TIENDA PÚBLICA (CATÁLOGO + CARRITO + RECIBO)     -->
   <!-- ========================================================= -->
   <main id="storeView" class="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
-    <!-- Hero + Buscador píldora -->
     <section class="text-center max-w-2xl mx-auto mb-10">
       <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#ebebeb] text-[12px] text-[#787574] mb-4 shadow-sm">
         <span class="w-2 h-2 rounded-full bg-[#0B1F3A]"></span>
@@ -151,7 +150,6 @@
         Selecciona tus insumos químicos, agrégalos al carrito y genera tu recibo de pedido en segundos.
       </p>
 
-      <!-- Barra de búsqueda estilo píldora -->
       <div class="relative flex items-center bg-white rounded-full border border-black/10 p-1.5 pl-5 shadow-sm max-w-xl mx-auto">
         <input id="searchInput" type="text" oninput="renderCatalog()"
           placeholder="Buscar hipoclorito, desengrasante, solventes..."
@@ -164,13 +162,10 @@
         </button>
       </div>
 
-      <!-- Chips de categoría -->
       <div id="categoryChips" class="flex flex-wrap justify-center gap-2 mt-5"></div>
     </section>
 
-    <!-- Grid principal: Catálogo (8 cols) + Carrito & Recibo (4 cols) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <!-- Catálogo de productos -->
       <section class="lg:col-span-8">
         <div class="flex items-center justify-between mb-5">
           <h2 class="text-[20px] font-semibold heading-tight text-black flex items-center gap-1.5">
@@ -185,7 +180,6 @@
         <div id="catalogGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
       </section>
 
-      <!-- Columna derecha: Carrito + Recibo de Pedido -->
       <aside id="cartSection" class="lg:col-span-4 space-y-5 sticky top-20">
         <div class="panel-surface p-6">
           <div class="flex items-center justify-between mb-4">
@@ -201,7 +195,6 @@
           </div>
         </div>
 
-        <!-- Formulario de Recibo -->
         <form id="receiptForm" onsubmit="submitOrder(event)" class="panel-surface p-6 space-y-4">
           <div>
             <span class="text-[11px] uppercase tracking-wider text-[#0B1F3A] font-semibold">Recibo de Pedido</span>
@@ -239,7 +232,6 @@
   <!-- ========================================================= -->
   <section id="adminView" class="hidden flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-8">
     <div class="flex flex-col md:flex-row gap-6 items-start">
-      <!-- Barra lateral estrecha tipo rail -->
       <nav class="w-full md:w-16 bg-white rounded-[28px] p-2 shadow-sm flex md:flex-col items-center justify-around md:justify-start gap-2 shrink-0">
         <button onclick="switchAdminTab('analytics')" id="tabAnalytics" title="Gráficas e Ingresos"
           class="rail-item active w-12 h-12 flex items-center justify-center text-black transition">
@@ -274,9 +266,7 @@
         </button>
       </nav>
 
-      <!-- Contenido del Panel Administrador -->
       <div class="flex-1 w-full space-y-6">
-        <!-- Encabezado Admin -->
         <div class="panel-surface p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span class="text-[11px] uppercase tracking-wider text-[#0B1F3A] font-semibold">Administración • Tienda Todo Químicos</span>
@@ -294,7 +284,6 @@
 
         <!-- SUBVISTA A: GRÁFICAS E INGRESOS MENSUALES -->
         <div id="adminTabAnalytics" class="space-y-6">
-          <!-- KPIs -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="panel-surface p-6">
               <span class="text-[12px] text-[#787574]">Ingresos del mes (pedidos válidos)</span>
@@ -310,7 +299,6 @@
             </div>
           </div>
 
-          <!-- Gráficas -->
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-8 panel-surface p-6">
               <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -338,7 +326,6 @@
             </div>
           </div>
 
-          <!-- Tabla resumen por producto -->
           <div class="panel-surface p-6 overflow-x-auto">
             <h3 class="text-[16px] font-semibold text-black mb-4">Desglose detallado por producto</h3>
             <table class="w-full text-left border-collapse text-[14px]">
@@ -401,7 +388,6 @@
             </div>
           </form>
 
-          <!-- Lista de productos administrables -->
           <div id="adminProductsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
 
@@ -458,7 +444,7 @@
         <label class="block text-[12px] text-[#787574] mb-1">Contraseña</label>
         <input id="adminPassword" type="password" required placeholder="••••••••" class="input-pill w-full" />
       </div>
-      <p id="loginError" class="hidden text-[12px] text-red-600"></p>
+      <div id="loginError" class="hidden text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-2xl p-3 leading-snug"></div>
       <button id="btnLoginSubmit" type="submit" class="btn-navy w-full py-3 text-[14px] font-medium">
         Iniciar sesión
       </button>
@@ -522,7 +508,6 @@
 
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Estado de la aplicación
     let allProducts = [];
     let cart = JSON.parse(localStorage.getItem('tq_cart') || '[]');
     let selectedCategory = 'Todas';
@@ -530,7 +515,6 @@
     let barChartInstance = null;
     let doughnutChartInstance = null;
 
-    // Formato moneda COP
     const formatCOP = (val) => new Intl.NumberFormat('es-CO', {
       style: 'currency', currency: 'COP', maximumFractionDigits: 0
     }).format(Number(val || 0));
@@ -543,7 +527,6 @@
       window._toastTimer = setTimeout(() => t.classList.add('hidden'), 3200);
     }
 
-    // Mes actual en zona horaria Colombia (YYYY-MM)
     function getColombiaYearMonth(dateObj = new Date()) {
       const parts = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'America/Bogota', year: 'numeric', month: '2-digit'
@@ -856,7 +839,20 @@
       btn.textContent = 'Iniciar sesión';
 
       if (error) {
-        errEl.textContent = 'Credenciales incorrectas o usuario no autorizado.';
+        const rawMsg = (error.message || '').toLowerCase();
+        let detalle = `Detalle técnico (${error.message})`;
+
+        if (rawMsg.includes('invalid login credentials')) {
+          detalle = 'Contraseña incorrecta o el correo no está registrado con contraseña en Supabase (Authentication → Users).';
+        } else if (rawMsg.includes('email not confirmed')) {
+          detalle = 'El correo existe en Supabase, pero falta confirmarlo en Authentication → Users.';
+        } else if (rawMsg.includes('invalid api key') || rawMsg.includes('apikey')) {
+          detalle = 'La clave SUPABASE_ANON_KEY en index.html no es válida.';
+        } else if (rawMsg.includes('failed to fetch')) {
+          detalle = 'No se pudo conectar con SUPABASE_URL. Revisa la URL del proyecto.';
+        }
+
+        errEl.textContent = detalle;
         errEl.classList.remove('hidden');
         return;
       }
@@ -948,7 +944,6 @@
       document.getElementById('kpiOrders').textContent = validOrders.length;
       document.getElementById('kpiUnits').textContent = totalUnits;
 
-      // Tabla desglose
       const tbody = document.getElementById('productBreakdownBody');
       if (!stats.length) {
         tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-[#787574]">Sin ventas registradas en este mes.</td></tr>`;
