@@ -7,6 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -462,9 +464,41 @@
         <button onclick="closeReceiptModal()" class="w-8 h-8 rounded-full bg-[#f2f4f5] text-black flex items-center justify-center">✕</button>
       </div>
       <div id="modalReceiptBody" class="text-[13px] space-y-2 text-black"></div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="downloadCurrentCustomerReceipt('jpg')"
+          class="pill-control py-2.5 px-4 bg-[#f2f4f5] hover:bg-[#e5e7eb] text-black text-[12px] font-semibold transition">
+          Descargar JPG
+        </button>
+        <button type="button" onclick="downloadCurrentCustomerReceipt('pdf')"
+          class="pill-control py-2.5 px-4 bg-black hover:bg-[#1e293b] text-white text-[12px] font-semibold transition">
+          Descargar PDF corto
+        </button>
+      </div>
       <button onclick="closeReceiptModal()" class="btn-navy w-full py-3 text-[14px] font-medium">
         Listo, volver a la tienda
       </button>
+    </div>
+  </div>
+
+  <!-- PLANTILLA OCULTA PARA RECIBO CORTO (JPG / PDF) -->
+  <div id="ticketExportWrapper" style="position:fixed; left:-9999px; top:0; width:360px; background:#ffffff; color:#000000; padding:24px; font-family:'Inter',sans-serif; border:1px solid #ebebeb;">
+    <div style="border-bottom:2px solid #0B1F3A; padding-bottom:12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-weight:700; font-size:16px; color:#0B1F3A;">TIENDA TODO QUÍMICOS</div>
+        <div id="tkSubtitle" style="font-size:11px; color:#787574;">Comprobante de Pedido</div>
+      </div>
+      <div id="tkNumber" style="background:#0B1F3A; color:#fff; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600;">#000</div>
+    </div>
+    <div id="tkMeta" style="font-size:12px; line-height:1.5; margin-bottom:14px;"></div>
+    <div style="border-top:1px dashed #cbd5e1; border-bottom:1px dashed #cbd5e1; padding:10px 0; margin-bottom:12px;">
+      <div id="tkItems" style="font-size:12px; line-height:1.6;"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:#0B1F3A;">
+      <span>TOTAL</span>
+      <span id="tkTotal">$0</span>
+    </div>
+    <div style="margin-top:14px; font-size:10px; color:#787574; text-align:center;">
+      Gracias por su compra • Tienda Todo Químicos
     </div>
   </div>
 
@@ -501,7 +535,7 @@
 
   <script>
     // ==========================================================
-    // 1. CREDENCIALES DE SUPABASE (REEMPLAZA CON TUS DATOS)
+    // 1. CREDENCIALES DE SUPABASE
     // ==========================================================
     const SUPABASE_URL = 'https://axwkhthsspmcrpdppawx.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_ErNdwNeGOuA_30nyEutKMg_Sf-_461q';
@@ -512,6 +546,7 @@
     let cart = JSON.parse(localStorage.getItem('tq_cart') || '[]');
     let selectedCategory = 'Todas';
     let adminOrders = [];
+    let lastCustomerReceipt = null;
     let barChartInstance = null;
     let doughnutChartInstance = null;
 
@@ -738,8 +773,9 @@
       const nombre = document.getElementById('custName').value.trim();
       const telefono = document.getElementById('custPhone').value.trim();
       const lugar = document.getElementById('custAddress').value.trim();
+      const snapshotItems = cart.map(i => ({ ...i }));
 
-      const payloadItems = cart.map(i => ({
+      const payloadItems = snapshotItems.map(i => ({
         producto_id: i.producto_id,
         cantidad: i.cantidad
       }));
@@ -760,14 +796,30 @@
         return;
       }
 
-      const totalOrder = cart.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+      const totalOrder = snapshotItems.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+      lastCustomerReceipt = {
+        id: pedidoId,
+        fecha: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+        cliente: nombre,
+        telefono,
+        entrega: lugar,
+        items: snapshotItems.map(i => ({
+          nombre: i.nombre,
+          cantidad: i.cantidad,
+          precio_unitario: i.precio,
+          subtotal: i.precio * i.cantidad
+        })),
+        total: totalOrder,
+        esIndividual: false
+      };
+
       document.getElementById('modalReceiptNumber').textContent = `Recibo #${pedidoId}`;
       document.getElementById('modalReceiptBody').innerHTML = `
         <p><strong>Cliente:</strong> ${nombre}</p>
         <p><strong>Teléfono:</strong> ${telefono}</p>
         <p><strong>Entrega:</strong> ${lugar}</p>
         <div class="border-t border-[#ebebeb] pt-2 mt-2 space-y-1">
-          ${cart.map(i => `<div class="flex justify-between"><span>${i.cantidad}x ${i.nombre}</span><span>${formatCOP(i.precio * i.cantidad)}</span></div>`).join('')}
+          ${snapshotItems.map(i => `<div class="flex justify-between"><span>${i.cantidad}x ${i.nombre}</span><span>${formatCOP(i.precio * i.cantidad)}</span></div>`).join('')}
         </div>
         <div class="border-t border-[#ebebeb] pt-2 mt-2 flex justify-between text-[15px] font-semibold">
           <span>Total a pagar:</span>
@@ -778,6 +830,11 @@
 
       e.target.reset();
       clearCart();
+    }
+
+    function downloadCurrentCustomerReceipt(formato) {
+      if (!lastCustomerReceipt) return;
+      exportTicketFile(lastCustomerReceipt, formato);
     }
 
     function closeReceiptModal() {
@@ -885,7 +942,7 @@
     }
 
     // ==========================================================
-    // 5. DATOS ADMIN, GRÁFICAS Y EXPORTACIÓN CSV
+    // 5. DATOS ADMIN, GRÁFICAS, RECIBOS INDIVIDUALES Y CSV
     // ==========================================================
     async function refreshAdminData() {
       await Promise.all([loadAdminProducts(), loadAdminOrders()]);
@@ -1044,6 +1101,104 @@
       });
     }
 
+    function downloadAdminFullOrder(orderId, formato) {
+      const o = adminOrders.find(x => x.id === orderId);
+      if (!o) return;
+      exportTicketFile({
+        id: o.id,
+        fecha: new Date(o.creado_en).toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+        cliente: o.nombre_apellidos,
+        telefono: o.telefono,
+        entrega: o.lugar_entrega,
+        items: (o.items_pedido || []).map(i => ({
+          nombre: i.producto_nombre,
+          cantidad: Number(i.cantidad),
+          precio_unitario: Number(i.precio_unitario),
+          subtotal: Number(i.cantidad) * Number(i.precio_unitario)
+        })),
+        total: Number(o.total),
+        esIndividual: false
+      }, formato);
+    }
+
+    function downloadSingleProductReceipt(orderId, itemIndex, formato) {
+      const o = adminOrders.find(x => x.id === orderId);
+      if (!o || !o.items_pedido || !o.items_pedido[itemIndex]) return;
+      const item = o.items_pedido[itemIndex];
+      const subtotal = Number(item.cantidad) * Number(item.precio_unitario);
+      exportTicketFile({
+        id: `${o.id}-P${itemIndex + 1}`,
+        fecha: new Date(o.creado_en).toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+        cliente: o.nombre_apellidos,
+        telefono: o.telefono,
+        entrega: o.lugar_entrega,
+        items: [{
+          nombre: item.producto_nombre,
+          cantidad: Number(item.cantidad),
+          precio_unitario: Number(item.precio_unitario),
+          subtotal
+        }],
+        total: subtotal,
+        esIndividual: true
+      }, formato);
+    }
+
+    async function exportTicketFile(ticket, formato) {
+      if (typeof html2canvas === 'undefined') {
+        showToast('No cargó el generador de recibos. Recarga la página.');
+        return;
+      }
+      if (formato === 'pdf' && (!window.jspdf || !window.jspdf.jsPDF)) {
+        showToast('No cargó el generador PDF. Recarga la página.');
+        return;
+      }
+
+      showToast(`Generando recibo ${formato.toUpperCase()}...`);
+      document.getElementById('tkSubtitle').textContent = ticket.esIndividual
+        ? 'Recibo Individual por Producto'
+        : 'Comprobante General de Pedido';
+      document.getElementById('tkNumber').textContent = `#${ticket.id}`;
+      document.getElementById('tkMeta').innerHTML = `
+        <div><strong>Fecha:</strong> ${ticket.fecha}</div>
+        <div><strong>Cliente:</strong> ${ticket.cliente}</div>
+        <div><strong>Teléfono:</strong> ${ticket.telefono}</div>
+        <div><strong>Entrega:</strong> ${ticket.entrega}</div>
+      `;
+      document.getElementById('tkItems').innerHTML = (ticket.items || []).map(i => `
+        <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
+          <span>${i.cantidad}x ${i.nombre}</span>
+          <span style="font-weight:600; white-space:nowrap;">${formatCOP(i.subtotal)}</span>
+        </div>
+      `).join('');
+      document.getElementById('tkTotal').textContent = formatCOP(ticket.total);
+
+      const wrapper = document.getElementById('ticketExportWrapper');
+      const canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff' });
+      const fileSlug = ticket.esIndividual
+        ? `Recibo_Producto_${ticket.id}`
+        : `Recibo_Pedido_${ticket.id}`;
+
+      if (formato === 'jpg') {
+        const link = document.createElement('a');
+        link.download = `${fileSlug}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.click();
+        showToast('Recibo JPG descargado');
+      } else {
+        const { jsPDF } = window.jspdf;
+        const widthPx = 360;
+        const heightPx = Math.round((canvas.height / canvas.width) * widthPx);
+        const pdf = new jsPDF({
+          orientation: heightPx > widthPx ? 'portrait' : 'landscape',
+          unit: 'px',
+          format: [widthPx, heightPx]
+        });
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, widthPx, heightPx);
+        pdf.save(`${fileSlug}.pdf`);
+        showToast('Recibo PDF corto descargado');
+      }
+    }
+
     function renderAdminOrdersList() {
       const monthOrders = getFilteredMonthOrders();
       const container = document.getElementById('adminOrdersList');
@@ -1063,7 +1218,7 @@
 
         return `
           <div class="panel-surface p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="space-y-1.5">
+            <div class="space-y-2">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="text-[16px] font-semibold text-black">Recibo #${o.id}</span>
                 <span class="px-3 py-0.5 rounded-full text-[11px] font-semibold uppercase ${badgeClass}">${o.estado}</span>
@@ -1071,17 +1226,35 @@
               </div>
               <p class="text-[14px] text-black"><strong>Cliente:</strong> ${o.nombre_apellidos} • <strong>Tel:</strong> ${o.telefono}</p>
               <p class="text-[13px] text-[#787574]"><strong>Entrega:</strong> ${o.lugar_entrega}</p>
-              <div class="flex flex-wrap gap-2 pt-1">
-                ${(o.items_pedido || []).map(i => `
-                  <span class="px-3 py-1 rounded-full bg-[#f2f4f5] text-[12px] text-black">
-                    ${i.cantidad}x ${i.producto_nombre} (${formatCOP(i.precio_unitario)})
-                  </span>
+              <div class="space-y-1.5 pt-1">
+                ${(o.items_pedido || []).map((i, idx) => `
+                  <div class="flex flex-wrap items-center gap-2 bg-[#f2f4f5] rounded-2xl px-3 py-1.5 text-[12px] text-black">
+                    <span class="font-medium">${i.cantidad}x ${i.producto_nombre} (${formatCOP(i.precio_unitario)} c/u)</span>
+                    <button type="button" onclick="downloadSingleProductReceipt(${o.id}, ${idx}, 'jpg')"
+                      class="px-2.5 py-0.5 rounded-full bg-white border border-[#ebebeb] text-[11px] font-semibold text-[#0B1F3A] hover:bg-[#e5e7eb]">
+                      Recibo JPG
+                    </button>
+                    <button type="button" onclick="downloadSingleProductReceipt(${o.id}, ${idx}, 'pdf')"
+                      class="px-2.5 py-0.5 rounded-full bg-[#0B1F3A] text-white text-[11px] font-semibold hover:bg-[#132F57]">
+                      PDF corto
+                    </button>
+                  </div>
                 `).join('')}
               </div>
             </div>
 
             <div class="flex flex-row md:flex-col items-center md:items-end justify-between gap-3 shrink-0">
               <span class="text-[20px] font-semibold text-[#0B1F3A]">${formatCOP(o.total)}</span>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="downloadAdminFullOrder(${o.id}, 'jpg')"
+                  class="pill-control px-3 py-1.5 bg-[#f2f4f5] hover:bg-[#e5e7eb] text-[11px] font-semibold text-black">
+                  Todo JPG
+                </button>
+                <button type="button" onclick="downloadAdminFullOrder(${o.id}, 'pdf')"
+                  class="pill-control px-3 py-1.5 bg-black hover:bg-[#1e293b] text-[11px] font-semibold text-white">
+                  Todo PDF
+                </button>
+              </div>
               <select onchange="updateOrderStatus(${o.id}, this.value)" class="input-pill text-[12px] py-1.5 px-3">
                 <option value="pendiente" ${o.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
                 <option value="entregado" ${o.estado === 'entregado' ? 'selected' : ''}>Entregado</option>
